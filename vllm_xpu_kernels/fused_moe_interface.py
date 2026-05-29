@@ -6,6 +6,7 @@ import torch
 try:
     from . import _C  # noqa: F401
     from . import _xpu_C  # noqa: F401
+    from . import _moe_C  # noqa: F401
     FUSEDMOE_UNAVAILABLE_REASON = None
     FUSEDMOE_AVAILABLE = True
 except ImportError as e:
@@ -478,6 +479,9 @@ class XpuFusedMoe:
             total_experts_num=self.total_experts_num,
             local_experts_num=self.local_experts_num)
 
+        # Valid rows after EP filtering (only local experts have data)
+        valid_rows = rows_per_expert.sum().item()
+
         ########### gemm1 ##################
         gemm1_output = torch.empty((num_moe_inputs, 2 * self.inter_size),
                                 dtype=hidden_states.dtype,
@@ -495,12 +499,12 @@ class XpuFusedMoe:
             is_B_int4=self.is_int4,
             is_B_mxfp4=self.is_mxfp4)
 
-        # act
+        # act — only on valid rows (GEMM only wrote to [0, valid_rows))
         act_output = torch.empty(
             (num_moe_inputs, self.inter_size * self.inter_size_scale),
             dtype=gemm1_output.dtype,
             device=gemm1_output.device)
-        self.act_func(act_output, gemm1_output)
+        self.act_func(act_output[:valid_rows], gemm1_output[:valid_rows])
 
         ########### gemm2 ##################
         gemm2_output = torch.empty((num_moe_inputs, hidden_size),
