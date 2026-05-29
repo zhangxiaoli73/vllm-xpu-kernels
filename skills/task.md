@@ -1,0 +1,7 @@
+请按照以下逻辑完成kernel实现。
+1）阅读megaMOE这个md，我需要你完成Stream Pipeline部分的实现
+2）按照pipeline的逻辑重写 C:\Users\lzhang2\OneDrive - Intel Corporation\Documents\Workspace\repos\cherry-vllm-xpu-kernels\vllm_xpu_kernels\fused_moe_interface.py里面的XpuFusedMoe，创建一个新的py文件来写。
+3）原始的XpuFusedMoe里面本身缺少了dispatch和combine的逻辑，dispatch可以认为是allgather，combine可以认为是reducescatter。在新建的XpuFusedMoe里面把dispatch和combine加上去，并按照ring的方式来loop world size
+4）实现之后创建一个UT，用来对比之前的XpuFusedMoe和pipeline的XpuFusedMoe的accuracy对比，是不是对的。
+5）实现之后创建一个UT，用来对比之前的XpuFusedMoe和pipeline的XpuFusedMoe的performance对比，看看有没有perf regression。
+6）碰到不清楚，拿不定注意的，请及时跟我讨论。
