@@ -14,7 +14,7 @@
 ### 2.1 Threshold 过滤
 
 对每个 source rank 的 tokens，按 local expert 的 token 数量分流：
-- **Big experts**: token 数量 ≥ threshold (默认 128) → 当前 pipeline step 立即计算
+- **Big experts**: token 数量 ≥ threshold (默认 256) → 当前 pipeline step 立即计算
 - **Small experts**: token 数量 < threshold → 收集起来，pipeline 最后统一做一次 grouped GEMM
 
 ### 2.2 过滤发生在 remap 之前
