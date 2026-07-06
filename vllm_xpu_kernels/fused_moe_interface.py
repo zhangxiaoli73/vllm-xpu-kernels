@@ -406,6 +406,10 @@ class XpuFusedMoe:
         topk_weights,
         topk_ids,
         expert_map=None,
+        start_event_all=None,
+        end_event_all=None,
+        start_event_gemm2_gather=None,
+        end_event_gemm2_gather=None,
     ):
         if self._use_ref:
             self._apply_ref(output, hidden_states,
@@ -414,7 +418,11 @@ class XpuFusedMoe:
         else:
             self._apply_kernel(output, hidden_states,
                                topk_weights, topk_ids,
-                               expert_map)
+                               expert_map,
+                               start_event_all,
+                               end_event_all,
+                               start_event_gemm2_gather,
+                               end_event_gemm2_gather)
 
     def _apply_ref(
         self,
@@ -448,10 +456,17 @@ class XpuFusedMoe:
         topk_weights,
         topk_ids,
         expert_map=None,
+        start_event_all=None,
+        end_event_all=None,
+        start_event_gemm2_gather=None,
+        end_event_gemm2_gather=None,
     ):
         num_rows, hidden_size = hidden_states.shape
         num_moe_inputs = self.n_experts_per_token * num_rows
         
+        if start_event_all is not None:
+            start_event_all.record()
+
         if expert_map is None and self.ep_size > 1:
             expert_map = self.expert_map
 
@@ -511,6 +526,9 @@ class XpuFusedMoe:
                                 dtype=hidden_states.dtype,
                                 device=hidden_states.device)
 
+        if start_event_gemm2_gather is not None:
+            start_event_gemm2_gather.record()
+
         torch.ops._xpu_C.cutlass_grouped_gemm_interface(
             ptr_A=act_output,
             ptr_B=self.w2,
@@ -527,6 +545,12 @@ class XpuFusedMoe:
         torch.ops._moe_C.moe_gather(output, gemm2_output, topk_weights,
                                     unpermuted_row_to_permuted_row,
                                     self.num_experts)
+
+        if end_event_gemm2_gather is not None:
+            end_event_gemm2_gather.record()
+
+        if end_event_all is not None:
+            end_event_all.record()
 
 def xpu_fused_moe(hidden_states,
                   w13,
